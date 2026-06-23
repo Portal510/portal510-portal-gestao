@@ -853,6 +853,39 @@ tr:hover .edit-icon{opacity:1}
   </div>
 </div>
 
+<!-- ══ LOGIN OVERLAY ══ -->
+<div id="login-overlay" style="position:fixed;inset:0;background:linear-gradient(135deg,#1F4E79 0%,#2E75B6 100%);z-index:9999;display:flex;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:16px;padding:40px;width:min(400px,92vw);box-shadow:0 12px 48px rgba(0,0,0,.35)">
+    <div style="text-align:center;margin-bottom:28px">
+      <div style="font-size:36px;margin-bottom:10px">🏛</div>
+      <div style="font-size:22px;font-weight:700;color:#1F4E79;letter-spacing:.3px">Portal T&S</div>
+      <div style="font-size:13px;color:#6c757d;margin-top:5px">Gestão de Terceirizados — TCU</div>
+    </div>
+    <label style="font-size:12px;color:#6c757d;font-weight:600;display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">Usuário</label>
+    <input type="text" id="login-user" placeholder="Digite seu usuário"
+      style="width:100%;padding:11px 14px;border:1.5px solid #dee2e6;border-radius:8px;font-size:14px;margin-bottom:14px;outline:none;transition:border .2s"
+      onfocus="this.style.borderColor='#2E75B6'" onblur="this.style.borderColor='#dee2e6'"
+      onkeydown="if(event.key==='Enter')loginSubmit()">
+    <label style="font-size:12px;color:#6c757d;font-weight:600;display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">Senha</label>
+    <div style="position:relative;margin-bottom:6px">
+      <input type="password" id="login-pass" placeholder="Digite sua senha"
+        style="width:100%;padding:11px 14px;border:1.5px solid #dee2e6;border-radius:8px;font-size:14px;outline:none;transition:border .2s"
+        onfocus="this.style.borderColor='#2E75B6'" onblur="this.style.borderColor='#dee2e6'"
+        onkeydown="if(event.key==='Enter')loginSubmit()">
+      <span onclick="toggleLoginPass()" style="position:absolute;right:13px;top:50%;transform:translateY(-50%);cursor:pointer;color:#aaa;font-size:16px;user-select:none" title="Mostrar/ocultar senha">👁</span>
+    </div>
+    <div id="login-erro" style="color:#a32d2d;font-size:12px;margin-bottom:10px;display:none;background:#FFE0E0;padding:7px 12px;border-radius:6px;border-left:3px solid #a32d2d"></div>
+    <button onclick="loginSubmit()"
+      style="width:100%;margin-top:8px;padding:12px;background:linear-gradient(135deg,#1F4E79,#2E75B6);color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;letter-spacing:.3px;transition:opacity .2s"
+      onmouseover="this.style.opacity='.9'" onmouseout="this.style.opacity='1'">
+      Entrar →
+    </button>
+    <div style="text-align:center;margin-top:16px;font-size:11px;color:#aaa">
+      Central de Serviços de TI — TCU · Contrato T&S
+    </div>
+  </div>
+</div>
+
 <!-- ══ PRE-DEF ENVIO MODAL ══ -->
 <div class="modal-bg" id="modal-predef-envio">
   <div class="modal" style="width:min(460px,95vw)">
@@ -1840,17 +1873,78 @@ function downloadCsv(headers, rows, filename){
 // ══════════════════════════════════════════
 // LOGIN
 // ══════════════════════════════════════════
-// Auto-login — sem tela de autenticação
-let currentUser={user:'gestao',nome:'Gestão T&S — TCU'};
+// ── LOGIN ─────────────────────────────────
+const USERS=[
+  {user:'priscila', pass:'Gestao@2025', nome:'Priscila Torres', role:'admin'},
+  {user:'admin',    pass:'tcu@2025',    nome:'Administrador',   role:'admin'},
+  {user:'gestao',   pass:'ts@2025',     nome:'Gestão T&S',      role:'admin'},
+];
+let currentUser=null;
+
+// Check existing session
+(function initSession(){
+  const s=sessionStorage.getItem('ts_portal_user');
+  if(s){
+    try{
+      currentUser=JSON.parse(s);
+      document.getElementById('login-overlay').style.display='none';
+      applyUser();
+    }catch(e){ sessionStorage.removeItem('ts_portal_user'); }
+  }
+})();
+
+function loginSubmit(){
+  const u=document.getElementById('login-user').value.trim().toLowerCase();
+  const p=document.getElementById('login-pass').value;
+  const err=document.getElementById('login-erro');
+  err.style.display='none';
+  if(!u||!p){err.textContent='Preencha usuário e senha.';err.style.display='block';return;}
+  const found=USERS.find(x=>x.user===u&&x.pass===p);
+  if(!found){
+    err.textContent='Usuário ou senha incorretos. Tente novamente.';
+    err.style.display='block';
+    document.getElementById('login-pass').value='';
+    document.getElementById('login-pass').focus();
+    return;
+  }
+  currentUser=found;
+  sessionStorage.setItem('ts_portal_user',JSON.stringify(found));
+  document.getElementById('login-overlay').style.display='none';
+  applyUser();
+}
 
 function applyUser(){
+  // Pre-fill remetente
   const rem=document.getElementById('com-remetente');
   if(rem&&!rem.value) rem.value='Priscila Pamplona Torres';
+  // Set today's date on comunicados
   const datEl=document.getElementById('com-data');
   if(datEl&&!datEl.value) datEl.value=new Date().toISOString().slice(0,10);
+  // Show user badge in header
+  let badge=document.getElementById('user-badge');
+  if(!badge){
+    badge=document.createElement('div');
+    badge.id='user-badge';
+    badge.style.cssText='margin-left:12px;font-size:12px;background:rgba(255,255,255,.18);padding:5px 14px;border-radius:20px;cursor:pointer;white-space:nowrap;border:1px solid rgba(255,255,255,.25);transition:background .2s';
+    badge.onmouseover=()=>badge.style.background='rgba(255,255,255,.28)';
+    badge.onmouseout=()=>badge.style.background='rgba(255,255,255,.18)';
+    badge.onclick=logout;
+    document.querySelector('.header').appendChild(badge);
+  }
+  badge.textContent='👤 '+(currentUser?.nome||'Gestor')+' · Sair';
 }
-function logout(){ location.reload(); }
-function toggleLoginPass(){}
+
+function logout(){
+  if(!confirm('Deseja sair do Portal T&S?')) return;
+  sessionStorage.removeItem('ts_portal_user');
+  location.reload();
+}
+
+function toggleLoginPass(){
+  const inp=document.getElementById('login-pass');
+  const eye=document.getElementById('login-eye');
+  if(inp){inp.type=inp.type==='password'?'text':'password';}
+}
 
 // ══════════════════════════════════════════
 // COMUNICADOS (reescrito)
